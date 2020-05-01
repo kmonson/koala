@@ -14,6 +14,7 @@
 "COUNTIF",
 "COUNTIFS",
 "DATE",
+"EDATE",
 "EOMONTH",
 "GAMMALN",
 "IF",

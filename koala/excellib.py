@@ -60,6 +60,7 @@ IND_FUN = [
     "COUNTIF",
     "COUNTIFS",
     "DATE",
+    "EDATE",
     "EOMONTH",
     "GAMMALN",  # see lgamma, a Python function, redefined in function map above
     "IF",  # see astnodes.py, not defined here
@@ -293,12 +294,29 @@ def date(year, month, day):  # Excel reference: https://support.office.com/en-us
     date_0 = datetime.datetime(1900, 1, 1)
     date = datetime.datetime(year, month, day)
 
-    result = (datetime.datetime(year, month, day) - date_0).days + 2
+    result = (date - date_0).days + 2
 
     if result <= 0:
         return ExcelError('#VALUE!', 'Date result is negative')
     else:
         return result
+
+
+def edate(start_date, months):  # Excel reference: https://support.office.com/en-us/article/EDATE-function-3C920EB2-6E66-44E7-A1F5-753AE47EE4F5
+    if not is_number(start_date):
+        return ExcelError('#VALUE!', 'start_date %s must be a number' % str(start_date))
+    if start_date < 0:
+        return ExcelError('#VALUE!', 'start_date %s must be positive' % str(start_date))
+
+    if not is_number(months):
+        return ExcelError('#VALUE!', 'months %s must be a number' % str(months))
+
+    y1, m1, d1 = date_from_int(start_date)
+    start_date_d = datetime.date(year=y1, month=m1, day=d1)
+    end_date_d = start_date_d + relativedelta(months=int(months))
+    res = int(int_from_date(end_date_d))
+
+    return res
 
 
 def eomonth(start_date, months):  # Excel reference: https://support.office.com/en-us/article/eomonth-function-7314ffa1-2bc9-4005-9d66-f49db127d628

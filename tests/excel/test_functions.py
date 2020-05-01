@@ -879,6 +879,18 @@ class Test_Eomonth(unittest.TestCase):
         self.assertNotEqual(eomonth(36525, 15), 36980)  # 31/12/1999, add 15 month
 
 
+class Test_Edate(unittest.TestCase):
+
+    def test_results(self):
+        self.assertEqual(edate(43566, 2), 43627)  # 11/04/2019, add 2 months
+        self.assertEqual(edate(43566, 2.1), 43627)  # 11/04/2019, add 2 months
+        self.assertEqual(edate(43566, 2.99), 43627)  # 11/04/2019, add 2 months
+        self.assertEqual(edate(43831, 5), 43983)  # 01/01/2020, add 5 months
+        self.assertEqual(edate(36525, 1), 36556)  # 31/12/1999, add 1 month
+        self.assertEqual(edate(36525, 15), 36981)  # 31/12/1999, add 15 month
+        self.assertNotEqual(edate(36525, 15), 36980)  # 31/12/1999, add 15 month
+
+
 class Test_Rand(unittest.TestCase):
 
     def test_results(self):

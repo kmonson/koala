@@ -63,6 +63,7 @@ IND_FUN = [
     "EDATE",
     "EOMONTH",
     "GAMMALN",  # see lgamma, a Python function, redefined in function map above
+    "HLOOKUP",
     "IF",  # see astnodes.py, not defined here
     "IFERROR",
     "INDEX",  # see astnodes.py
@@ -337,6 +338,38 @@ def eomonth(start_date, months):  # Excel reference: https://support.office.com/
     res = int(int_from_date(datetime.date(y2, m2, d2)))
 
     return res
+
+
+def hlookup(lookup_value, table_array, row_index_num, range_lookup=True): # https://support.office.com/en-us/article/HLOOKUP-function-A3034EEC-B719-4BA3-BB65-E1AD662ED95F
+
+    if not isinstance(table_array, Range):
+        return ExcelError('#VALUE', 'table_array should be a Range')
+
+    if row_index_num > table_array.nrows:
+        return ExcelError('#VALUE', 'row_index_num is greater than the number of rows in table_array')
+
+    first_row = table_array.get(1, 0)
+    result_row = table_array.get(row_index_num, 0)
+
+    if not range_lookup:
+        if lookup_value not in first_row.values:
+            return ExcelError('#N/A', 'lookup_value not in first row of table_array')
+        else:
+            i = first_row.values.index(lookup_value)
+            ref = first_row.order[i]
+    else:
+        i = None
+        for v in first_row.values:
+            if lookup_value >= v:
+                i = first_row.values.index(v)
+                ref = first_row.order[i]
+            else:
+                break
+
+        if i is None:
+            return ExcelError('#N/A', 'lookup_value smaller than all values of table_array')
+
+    return Range.find_associated_value(ref, result_row)
 
 
 def iferror(value, value_if_error):  # Excel reference: https://support.office.com/en-us/article/IFERROR-function-c526fd07-caeb-47b8-8bb6-63f3e417f611

@@ -17,6 +17,7 @@
 "EDATE",
 "EOMONTH",
 "GAMMALN",
+"HLOOKUP",
 "IF",
 "IFERROR",
 "INDEX",

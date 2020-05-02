@@ -309,7 +309,7 @@ class RangeCore(dict):
                 out_row = self.origin[0] + row - 1
 
                 tuples = [
-                    (out_row, c)
+                    (out_row, num2col(c))
                     for c in range(origin_col, origin_col + self.ncols)
                 ]
 

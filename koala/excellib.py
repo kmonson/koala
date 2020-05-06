@@ -122,7 +122,6 @@ EXCEL_EPOCH = datetime.datetime.strptime("1900-01-01", '%Y-%m-%d').date()
 def average(*args): # Excel reference: https://support.office.com/en-us/article/AVERAGE-function-047bac88-d466-426c-a32b-8f33eb960cf6
     # ignore non numeric cells and boolean cells
     values = extract_numeric_values(*args)
-
     return sum(values) / len(values)
 
 
@@ -570,7 +569,8 @@ def match(lookup_value, lookup_range, match_type=1):  # Excel reference: https:/
         elif value is None:
             value = 0
 
-        return value;
+        return value
+
     def type_convert_float(value):
         if is_number(value):
             value = float(value)
@@ -695,7 +695,7 @@ def offset(reference, rows, cols, height=None, width=None): # Excel reference: h
 
     # get first cell address of reference
     if is_range(reference):
-        ref = resolve_range(reference, should_flatten = True)[0][0]
+        ref = resolve_range(reference, should_flatten=True)[0][0]
     else:
         ref = reference
     ref_sheet = ''
@@ -717,10 +717,14 @@ def offset(reference, rows, cols, height=None, width=None): # Excel reference: h
     start_address = str(num2col(new_col)) + str(new_row)
 
     if (height is not None and width is not None):
-        if type(height) != int:
-            return ExcelError('#VALUE!', '%d must not be integer' % height)
-        if type(width) != int:
-            return ExcelError('#VALUE!', '%d must not be integer' % width)
+        if not is_number(height):
+            return ExcelError('#VALUE!', '%d must be a number' % height)
+        if not is_number(width):
+            return ExcelError('#VALUE!', '%d must be a number' % width)
+
+        # Excel truncates these values with a round toward 0.
+        height = int(height)
+        width = int(width)
 
         if height > 0:
             end_row = new_row + height - 1

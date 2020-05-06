@@ -354,10 +354,15 @@ class FunctionNode(ASTNode):
             else:
                 return 'self.eval_ref(index(%s), ref = %s)' % (",".join([n.emit(ast,context=context) for n in args]), self.ref)
         elif fun == "offset":
-            if pointer or self.parent(ast) is None or self.parent(ast).tvalue == ':':
-                return 'offset(' + ",".join([n.emit(ast,context=context) for n in args]) + ")"
+            if len(args) > 0:
+                args_str = ",".join([args[0].emit(ast, context=context, pointer=True)] +
+                                    [n.emit(ast, context=context) for n in args[1:]])
             else:
-                return 'self.eval_ref(offset(%s), ref = %s)' % (",".join([n.emit(ast,context=context) for n in args]), self.ref)
+                args_str = ""
+            if pointer or self.parent(ast) is None or self.parent(ast).tvalue == ':':
+                return 'offset(' + args_str + ")"
+            else:
+                return 'self.eval_ref(offset(%s))' % (args_str,)
         else:
             # map to the correct name
             f = self.funmap.get(fun, fun)

@@ -389,7 +389,7 @@ class Spreadsheet(object):
                     reference = self.named_ranges[i]
                     if is_range(reference):
 
-                        rng = self.Range(reference)
+                        rng = self.range(reference)
                         virtual_cell = Cell(i, None, value = rng, formula = reference, is_range = True, is_named_range = True )
                         new_cellmap[i] = virtual_cell
                         subgraph.add_node(virtual_cell) # edges are not needed here since the input here is not in the calculation chain
@@ -401,7 +401,7 @@ class Spreadsheet(object):
                         subgraph.add_node(virtual_cell) # edges are not needed here since the input here is not in the calculation chain
                 else:
                     if is_range(i):
-                        rng = self.Range(i)
+                        rng = self.range(i)
                         virtual_cell = Cell(i, None, value = rng, formula = o, is_range = True, is_named_range = True )
                         new_cellmap[i] = virtual_cell
                         subgraph.add_node(virtual_cell) # edges are not needed here since the input here is not in the calculation chain
@@ -424,7 +424,7 @@ class Spreadsheet(object):
             reference = self.named_ranges[n]
             if is_range(reference):
                 if 'OFFSET' not in reference:
-                    my_range = self.Range(reference)
+                    my_range = self.range(reference)
                     self.cellmap[n] = Cell(n, None, value = my_range, formula = reference, is_range = True, is_named_range = True )
                 else:
                     self.cellmap[n] = Cell(n, None, value = None, formula = reference, is_range = False, is_named_range = True )
@@ -864,68 +864,66 @@ class Spreadsheet(object):
 
             vol_range.build('%s:%s' % (start, end), debug = True)
 
-    def eval_ref(self, addr1, addr2 = None, ref = None):
-        debug = False
-
+    def eval_ref(self, addr1, addr2=None, ref=None):
         if isinstance(addr1, ExcelError):
             return addr1
         elif isinstance(addr2, ExcelError):
             return addr2
+
+        # Handle case where address is a range but not in the cell map
+        # Fixes OFFSET result passed here before going up to SUM or AVERAGE
+        # and probably some other stuff.
+        if (addr1 not in self.named_ranges and
+                addr1 not in self.cellmap and
+                is_range(addr1) and
+                addr2 is None):
+            addr1, addr2 = addr1.split(':')
+            if '!' in addr2:
+                addr2 = addr2.split('!')[1]
+
+            return self.range('%s:%s' % (addr1, addr2))
+
+        if addr1 in self.cellmap:
+            cell1 = self.cellmap[addr1]
         else:
-            if addr1 in self.cellmap:
-                cell1 = self.cellmap[addr1]
-            else:
-                if self.debug:
-                    logging.warning('WARNING in eval_ref: address %s not found in cellmap, returning #NULL' % addr1)
-                return ExcelError('#NULL', 'Cell %s is empty' % addr1)
-            if addr2 == None:
-                if cell1.is_range:
+            if self.debug:
+                logging.warning('WARNING in eval_ref: address %s not found in cellmap, returning #NULL' % addr1)
+            return ExcelError('#NULL', 'Cell %s is empty' % addr1)
+        if addr2 is None:
+            if cell1.is_range:
 
-                    if cell1.range.is_pointer:
-                        self.build_pointer(cell1.range)
-                        # print 'NEED UPDATE', cell1.need_update
+                if cell1.range.is_pointer:
+                    self.build_pointer(cell1.range)
+                    # print 'NEED UPDATE', cell1.need_update
 
-                    associated_addr = RangeCore.find_associated_cell(ref, cell1.range)
+                associated_addr = RangeCore.find_associated_cell(ref, cell1.range)
 
-                    if associated_addr: # if range is associated to ref, no need to return/update all range
-                        return self.evaluate(associated_addr)
-                    else:
-                        range_name = cell1.address()
-                        if cell1.need_update:
-                            self.update_range(cell1.range)
-
-                            range_need_update = True
-                            for c in self.G.successors(cell1): # if a parent doesnt need update, then cell1 doesnt need update
-                                if not c.need_update:
-                                    range_need_update = False
-                                    break
-
-                            cell1.need_update = range_need_update
-                            return cell1.range
-                        else:
-                            return cell1.range
-
-                elif addr1 in self.named_ranges or not is_range(addr1):
-                    value = self.evaluate(addr1)
-                    return value
-                else: # addr1 = Sheet1!A1:A2 or Sheet1!A1:Sheet1!A2
-                    addr1, addr2 = addr1.split(':')
-                    if '!' in addr1:
-                        sheet = addr1.split('!')[0]
-                    else:
-                        sheet = None
-                    if '!' in addr2:
-                        addr2 = addr2.split('!')[1]
-
-                    return self.Range('%s:%s' % (addr1, addr2))
-            else:  # addr1 = Sheet1!A1, addr2 = Sheet1!A2
-                if '!' in addr1:
-                    sheet = addr1.split('!')[0]
+                if associated_addr: # if range is associated to ref, no need to return/update all range
+                    return self.evaluate(associated_addr)
                 else:
-                    sheet = None
-                if '!' in addr2:
-                    addr2 = addr2.split('!')[1]
-                return self.Range('%s:%s' % (addr1, addr2))
+                    range_name = cell1.address()
+                    if cell1.need_update:
+                        self.update_range(cell1.range)
+
+                        range_need_update = True
+                        for c in self.G.successors(cell1): # if a parent doesnt need update, then cell1 doesnt need update
+                            if not c.need_update:
+                                range_need_update = False
+                                break
+
+                        cell1.need_update = range_need_update
+                        return cell1.range
+                    else:
+                        return cell1.range
+
+            elif addr1 in self.named_ranges or not is_range(addr1):
+                value = self.evaluate(addr1)
+                return value
+
+        else:  # addr1 = Sheet1!A1, addr2 = Sheet1!A2
+            if '!' in addr2:
+                addr2 = addr2.split('!')[1]
+            return self.range('%s:%s' % (addr1, addr2))
 
     def update_range(self, range):
         # This function loops through its Cell references to evaluate the ones that need so

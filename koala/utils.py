@@ -573,15 +573,9 @@ def extract_numeric_values(*args):
 
     for arg in args:
         if isinstance(arg, collections.abc.Iterable) and type(arg) != list and type(arg) != tuple and type(arg) != str: # does not work fo other Iterable than RangeCore, but can t import RangeCore here for circular reference issues
-            values.extend([x for x in arg.values if is_number(x) and type(x) is not bool])
-            # for x in arg.values:
-            #     if is_number(x) and type(x) is not bool: # excludes booleans from nested ranges
-            #         values.append(x)
+            values.extend([x for x in arg.values if isinstance(x, ExcelError) or is_number(x) and not isinstance(x, bool)])
         elif type(arg) is tuple or type(arg) is list:
-            values.extend([x for x in arg if is_number(x) and type(x) is not bool])
-            # for x in arg:
-            #     if is_number(x) and type(x) is not bool: # excludes booleans from nested ranges
-            #         values.append(x)
+            values.extend([x for x in arg if isinstance(x, ExcelError) or is_number(x) and not isinstance(x, bool)])
         elif is_number(arg):
             values.append(arg)
 

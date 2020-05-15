@@ -122,7 +122,14 @@ EXCEL_EPOCH = datetime.datetime.strptime("1900-01-01", '%Y-%m-%d').date()
 def average(*args): # Excel reference: https://support.office.com/en-us/article/AVERAGE-function-047bac88-d466-426c-a32b-8f33eb960cf6
     # ignore non numeric cells and boolean cells
     values = extract_numeric_values(*args)
-    return sum(values) / len(values)
+    for v in values:
+        if isinstance(v, ExcelError):
+            return v
+
+    try:
+        return sum(values) / len(values)
+    except ZeroDivisionError as e:
+        return ExcelError('#DIV/0!', e)
 
 
 def choose(index_num, *values): # Excel reference: https://support.office.com/en-us/article/CHOOSE-function-fc5c184f-cb62-4ec7-a46e-38653b98f5bc
@@ -1121,7 +1128,9 @@ def xlog(a):
 def xmax(*args): # Excel reference: https://support.office.com/en-us/article/MAX-function-e0012414-9ac8-4b34-9a47-73e662c08098
     # ignore non numeric cells and boolean cells
     values = extract_numeric_values(*args)
-
+    for v in values:
+        if isinstance(v, ExcelError):
+            return v
     # however, if no non numeric cells, return zero (is what excel does)
     if len(values) < 1:
         return 0
@@ -1132,7 +1141,9 @@ def xmax(*args): # Excel reference: https://support.office.com/en-us/article/MAX
 def xmin(*args): # Excel reference: https://support.office.com/en-us/article/MIN-function-61635d12-920f-4ce2-a70f-96f202dcc152
     # ignore non numeric cells and boolean cells
     values = extract_numeric_values(*args)
-
+    for v in values:
+        if isinstance(v, ExcelError):
+            return v
     # however, if no non numeric cells, return zero (is what excel does)
     if len(values) < 1:
         return 0
@@ -1184,7 +1195,8 @@ def xnpv(rate, values, dates, lim_rate_low=True, lim_rate_high=False):  # Excel 
 
 
 def xround(number, num_digits = 0): # Excel reference: https://support.office.com/en-us/article/ROUND-function-c018c5d8-40fb-4053-90b1-b3e7f61a213c
-
+    if isinstance(number, ExcelError):
+        return number
     if not is_number(number):
         return ExcelError('#VALUE!', '%s is not a number' % str(number))
     if not is_number(num_digits):
@@ -1205,6 +1217,10 @@ def xsum(*args): # Excel reference: https://support.office.com/en-us/article/SUM
     # ignore non numeric cells and boolean cells
 
     values = extract_numeric_values(*args)
+
+    for v in values:
+        if isinstance(v, ExcelError):
+            return v
 
     # however, if no non numeric cells, return zero (is what excel does)
     if len(values) < 1:

@@ -843,8 +843,12 @@ def sln(cost, salvage, life): # Excel reference: https://support.office.com/en-u
 
 # https://support.office.com/en-ie/article/sqrt-function-654975c2-05c4-4831-9a24-2c65e4040fdf
 def sqrt(number):
+    if isinstance(number, ExcelError):
+        return number
+    if not is_number(number):
+        return ExcelError('#VALUE!', '%s is not a number' % str(number))
     if number < 0:
-        return ExcelError('#NUM!', '%s must be non-negative' % str(index_num))
+        return ExcelError('#NUM!', '%s must be non-negative' % str(number))
     return np.sqrt(number)
 
 

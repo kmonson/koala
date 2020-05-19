@@ -740,10 +740,10 @@ class Spreadsheet(object):
                 PendingDeprecationWarning
             )
             self.cell_reset(depricated.address())
+            return
 
-        for cell in self.cellmap.values:
+        for cell in self.cellmap.values():
             self.cell_reset(cell.address())
-        return
 
     def cell_reset(self, address):
         """
@@ -881,7 +881,9 @@ class Spreadsheet(object):
             if '!' in addr2:
                 addr2 = addr2.split('!')[1]
 
-            return self.range('%s:%s' % (addr1, addr2))
+            cell_range = self.range('%s:%s' % (addr1, addr2))
+            self.update_range(cell_range)
+            return cell_range
 
         if addr1 in self.cellmap:
             cell1 = self.cellmap[addr1]

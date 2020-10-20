@@ -25,6 +25,7 @@
 "ISBLANK",
 "ISNA",
 "ISTEXT",
+"LEFT",
 "LINEST",
 "LOG",
 "LOOKUP",

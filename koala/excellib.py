@@ -71,6 +71,7 @@ IND_FUN = [
     "ISBLANK",
     "ISNA",
     "ISTEXT",
+    "LEFT",
     "LINEST",
     "LOG",  # Python function, not defined here
     "LOOKUP",
@@ -502,6 +503,12 @@ def isna(value):
 def istext(value):
     return type(value) == str
 
+
+def left(text,n=1):
+    if isinstance(text, str):
+        return text[:n]
+
+    return ExcelError('#VALUE!', 'Input value must be text')
 
 # NEEDS TEST
 def linest(*args, **kwargs):  # Excel reference: https://support.office.com/en-us/article/LINEST-function-84d7d0d9-6e50-4101-977a-fa7abf772b6d

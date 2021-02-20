@@ -662,10 +662,10 @@ def mid(text, start_num, num_chars):  # Excel reference: https://support.office.
 
 
 def mod(nb, q):  # Excel Reference: https://support.office.com/en-us/article/MOD-function-9b6cd169-b6ee-406a-a97b-edf2a9dc24f3
-    if not isinstance(nb, int):
-        return ExcelError('#VALUE!', '%s is not an integer' % str(nb))
-    elif not isinstance(q, int):
-        return ExcelError('#VALUE!', '%s is not an integer' % str(q))
+    if not isinstance(nb, (int, float)):
+        return ExcelError('#VALUE!', '%s is not a number' % str(nb))
+    elif not isinstance(q, (int, float)):
+        return ExcelError('#VALUE!', '%s is not a number' % str(q))
     else:
         return nb % q
 

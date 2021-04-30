@@ -36,6 +36,7 @@
 "MIN",
 "MOD",
 "MONTH",
+"MROUND",
 "NPV",
 "OFFSET",
 "OR",

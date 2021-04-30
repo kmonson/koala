@@ -501,7 +501,7 @@ class RangeCore(dict):
 
             vals = [function(
                 x.value if isinstance(x, CellBase) else x,
-                y.value if isinstance(x, CellBase) else y
+                y.value if isinstance(y, CellBase) else y
             ) for x, y in zip(first.cells, second.cells)]
 
             return RangeCore(
@@ -634,6 +634,26 @@ class RangeCore(dict):
         except Exception as e:
             return ExcelError('#N/A', e)
 
+    @staticmethod
+    def concatenate(a, b):
+        try:
+            a = check_value(a)
+            b = check_value(b)
+            if isinstance(a, ExcelError):
+                return a
+            if isinstance(b, ExcelError):
+                return b
+            #Truncate 0's off of floats if appropriate.
+            if isinstance(a, float) and a.is_integer():
+                a = int(a)
+            if isinstance(b, float) and b.is_integer():
+                b = int(b)
+            a = str(a)
+            b = str(b)
+            return a + b
+        except Exception as e:
+            return ExcelError('#N/A', e)
+
 func_dict = {
     "multiply": RangeCore.multiply,
     "divide": RangeCore.divide,
@@ -647,6 +667,7 @@ func_dict = {
     "is_strictly_inferior": RangeCore.is_strictly_inferior,
     "is_superior_or_equal": RangeCore.is_superior_or_equal,
     "is_inferior_or_equal": RangeCore.is_inferior_or_equal,
+    "concatenate": RangeCore.concatenate,
 }
 
 

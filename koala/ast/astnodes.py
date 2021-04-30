@@ -103,7 +103,6 @@ class OperatorNode(ASTNode):
         # convert the operator to python equivalents
         self.opmap = {
                  "=":"==",
-                 "&":"+",
                  "":"+" #union
                  }
 
@@ -118,7 +117,8 @@ class OperatorNode(ASTNode):
             ">": "is_strictly_superior",
             "<": "is_strictly_inferior",
             ">=": "is_superior_or_equal",
-            "<=": "is_inferior_or_equal"
+            "<=": "is_inferior_or_equal",
+            "&": "concatenate",
         }
 
     def emit(self,ast,context=None, pointer = False):
@@ -144,7 +144,7 @@ class OperatorNode(ASTNode):
         if self.ttype == "operator-prefix":
             return 'RangeCore.apply_one("minus", %s, None, %s)' % (args[0].emit(ast,context=context), to_str(self.ref))
 
-        if op in ["+", "-", "*", "/", "^", "==", "<>", ">", "<", ">=", "<="]:
+        if op in ["+", "-", "*", "/", "^", "==", "<>", ">", "<", ">=", "<=", "&"]:
             is_special = self.find_special_function(ast)
             call = 'apply' + ('_all' if is_special else '')
             function = self.op_range_translator.get(op)

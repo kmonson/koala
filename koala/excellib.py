@@ -82,6 +82,7 @@ IND_FUN = [
     "MIN",  # see xmin, redefined in function map above
     "MOD",
     "MONTH",
+    "MROUND",
     "NPV",
     "OFFSET",  # see astnodes.py
     "OR",  # see astnodes.py, not defined here
@@ -178,7 +179,7 @@ def concatenate(*args):
     cat_string = ''.join(str(a) for a in args)
 
     if len(cat_string) > CELL_CHARACTER_LIMIT:
-        return ExcelError('#VALUE', 'Too long. concatentaed string should be no longer than %s but is %s' % (CELL_CHARACTER_LIMIT, len(cat_String)))
+        return ExcelError('#VALUE', 'Too long. concatentaed string should be no longer than %s but is %s' % (CELL_CHARACTER_LIMIT, len(cat_string)))
 
     return cat_string
 
@@ -679,6 +680,34 @@ def month(serial_number): # Excel reference: https://support.office.com/en-us/ar
     y1, m1, d1 = date_from_int(serial_number)
 
     return m1
+
+
+def mround(number, multiple): # Excel reference: https://support.office.com/en-us/article/ROUND-function-c018c5d8-40fb-4053-90b1-b3e7f61a213c
+    if isinstance(number, ExcelError):
+        return number
+    if isinstance(multiple, ExcelError):
+        return multiple
+    if not is_number(number):
+        return ExcelError('#VALUE!', '%s is not a number' % str(number))
+    if not is_number(multiple):
+        return ExcelError('#VALUE!', '%s is not a number' % str(multiple))
+
+    if not isinstance(number, int):
+        number = float(number)
+
+    if not isinstance(multiple, int):
+        multiple = float(multiple)
+        multiple_int = False
+    else:
+        multiple_int = True
+
+    try:
+        result = round(number/multiple, 0) * multiple
+        if multiple_int:
+            result = int(result)
+        return result
+    except ZeroDivisionError as e:
+        return ExcelError('#DIV/0!', e)
 
 
 def npv(rate, *values): # Excel reference: https://support.office.com/en-us/article/NPV-function-8672cb67-2576-4d07-b67b-ac28acf2a568
@@ -1221,7 +1250,7 @@ def xround(number, num_digits = 0): # Excel reference: https://support.office.co
         # and https://gist.github.com/ejamesc/cedc886c5f36e2d075c5
 
     else:
-        return round(number, num_digits)
+        return int(round(number, num_digits))
 
 
 def xsum(*args): # Excel reference: https://support.office.com/en-us/article/SUM-function-043e1c7d-7726-4e80-8f32-07b23e057f89

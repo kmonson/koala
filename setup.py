@@ -13,7 +13,7 @@ if __name__ == '__main__':
     setup(
         name="koala2",
 
-        version="0.0.36+4",
+        version="0.0.36+5",
 
         author="Ants, open innovation lab",
         author_email="vallettea@gmail.com",
@@ -21,7 +21,7 @@ if __name__ == '__main__':
         packages=find_packages(),
 
         classifiers=[
-            "Programming Language :: Python :: 2.7 :: 3",
+            "Programming Language :: Python :: 3.7 :: 3",
             "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
             'Operating System :: Microsoft :: Windows',
             'Operating System :: MacOS :: MacOS X',

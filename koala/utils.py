@@ -576,7 +576,7 @@ def extract_numeric_values(*args):
             values.extend([x for x in arg.values if isinstance(x, ExcelError) or is_number(x) and not isinstance(x, bool)])
         elif type(arg) is tuple or type(arg) is list:
             values.extend([x for x in arg if isinstance(x, ExcelError) or is_number(x) and not isinstance(x, bool)])
-        elif is_number(arg):
+        elif is_number(arg) or isinstance(arg, ExcelError):
             values.append(arg)
 
     return values

@@ -349,6 +349,9 @@ def eomonth(start_date, months):  # Excel reference: https://support.office.com/
 
 
 def hlookup(lookup_value, table_array, row_index_num, range_lookup=True): # https://support.office.com/en-us/article/HLOOKUP-function-A3034EEC-B719-4BA3-BB65-E1AD662ED95F
+    for arg in [lookup_value, table_array, row_index_num]:
+        if isinstance(arg, ExcelError) or arg in ErrorCodes:
+            return arg
 
     if not isinstance(table_array, Range):
         return ExcelError('#VALUE', 'table_array should be a Range')
@@ -1086,6 +1089,9 @@ def vdb(cost, salvage, life, start_period, end_period, factor = 2, no_switch = F
 
 
 def vlookup(lookup_value, table_array, col_index_num, range_lookup = True): # https://support.office.com/en-us/article/VLOOKUP-function-0bbc8083-26fe-4963-8ab8-93a18ad188a1
+    for arg in [lookup_value, table_array, col_index_num]:
+        if isinstance(arg, ExcelError) or arg in ErrorCodes:
+            return arg
 
     if not isinstance(table_array, Range):
         return ExcelError('#VALUE', 'table_array should be a Range')

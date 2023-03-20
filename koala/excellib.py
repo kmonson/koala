@@ -900,7 +900,7 @@ def sumif(range, criteria, sum_range = None): # Excel reference: https://support
     if not isinstance(range, Range):
         return TypeError('%s must be a Range' % str(range))
 
-    if isinstance(criteria, Range) and not isinstance(criteria , (str, bool)): # ugly...
+    if isinstance(criteria, Range) and not isinstance(criteria, (str, bool)):  # ugly...
         return 0
 
     indexes = find_corresponding_index(range.values, criteria)
@@ -912,10 +912,22 @@ def sumif(range, criteria, sum_range = None): # Excel reference: https://support
         def f(x):
             return sum_range.values[x] if x < sum_range.length else 0
 
-        return sum(map(f, indexes))
+        values = list(map(f, indexes))
+
+        for v in values:
+            if isinstance(v, ExcelError):
+                return v
+
+        return sum(values)
 
     else:
-        return sum([range.values[x] for x in indexes])
+        values = [range.values[x] for x in indexes]
+
+        for v in values:
+            if isinstance(v, ExcelError):
+                return v
+
+        return sum(values)
 
 
 def sumifs(*args):

@@ -24,6 +24,8 @@ from openpyxl.xml.constants import (
     SHARED_STRINGS
 )
 
+from koala.utils import is_range, resolve_range, split_address
+
 curfile = os.path.abspath(os.path.dirname(__file__))
 
 with open('%s/functions.json' % curfile, 'r') as file:
@@ -100,7 +102,7 @@ def read_named_ranges(archive):
 
     return dict
 
-def read_cells(archive, ignore_sheets = [], ignore_hidden = False, include_only_sheets=None):
+def read_cells(archive, ignore_sheets = [], ignore_hidden = False, include_only_sheets=None, named_ranges=None):
     global debug
 
     cells = {}
@@ -168,9 +170,9 @@ def read_cells(archive, ignore_sheets = [], ignore_hidden = False, include_only_
                 if debug:
                     logging.debug('Cell', cell['a'])
                 for child in c:
-                    child_data_type = child.get('t', 'n') # if no type assigned, assign 'number'
+                    child_data_type = child.get('t', 'n')  # if no type assigned, assign 'number'
 
-                    if child.tag == '{%s}f' % SHEET_MAIN_NS :
+                    if child.tag == '{%s}f' % SHEET_MAIN_NS:
                         if 'ref' in child.attrib: # the first cell of a shared formula has a 'ref' attribute
                             if debug:
                                 logging.debug('*** Found definition of shared formula ***', child.text, child.attrib['ref'])
@@ -186,14 +188,16 @@ def read_cells(archive, ignore_sheets = [], ignore_hidden = False, include_only_
                             formula = function_map[child.attrib['si']][1]
 
                             translated = formula.translate_formula(cell_address)
-                            cell['f'] = translated[1:] # we need to get rid of the '='
+                            cell['f'] = translated[1:]  # we need to get rid of the '='
 
                         else:
                             cell['f'] = child.text
 
-                    elif child.tag == '{%s}v' % SHEET_MAIN_NS :
-                        if cell_data_type == 's' or cell_data_type == 'str': # value is a string
-                            try: # if it fails, it means that cell content is a string calculated from a formula
+                    elif child.tag == '{%s}v' % SHEET_MAIN_NS:
+                        if child.text is None:
+                            cell['v'] = None
+                        elif cell_data_type == 's' or cell_data_type == 'str':  # value is a string
+                            try:  # if it fails, it means that cell content is a string calculated from a formula
                                 cell['v'] = shared_strings[int(child.text)]
                             except:
                                 cell['v'] = child.text
@@ -221,6 +225,28 @@ def read_cells(archive, ignore_sheets = [], ignore_hidden = False, include_only_
                         cells[cell_address] = Cell(cell_address, sheet_name, value = cell['v'], formula = cleaned_formula, should_eval=should_eval)
                     else:
                         cells[sheet_name + "!" + cell_address] = Cell(cell_address, sheet_name, value = cell['v'], formula = cleaned_formula, should_eval=should_eval)
+
+    if named_ranges is not None:
+        # Ensure all named range cells exist so Range objects are generated correctly.
+        for reference in named_ranges.values():
+            if 'OFFSET' in reference or 'INDEX' in reference:
+                continue
+
+            if reference.startswith("="):
+                continue
+
+            if is_range(reference):
+                range_cells, *_ = resolve_range(reference, should_flatten=True)
+            else:
+                try:
+                    if None not in split_address(reference):
+                        range_cells = [reference]
+                except ValueError:
+                    continue
+
+            for cell_address in range_cells:
+                if cell_address not in cells and not cell_address.startswith('['):
+                    cells[cell_address] = Cell(cell_address, value=None, formula=None)
 
     return cells, sheets
 

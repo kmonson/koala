@@ -24,7 +24,7 @@ def is_almost_equal(a, b, precision = 0.0001):
     elif (a is None or a == 'None') and (b is None or b == 'None'):
         return True
     else: # booleans or strings
-        return str(a) == str(b)
+        return str(a).lower() == str(b).lower()
 
 def is_range(address):
     if isinstance(address, Exception):
@@ -91,7 +91,7 @@ def split_address(address):
             row = None
             col = addr
         else:
-            raise Exception('Invalid address format ' + addr)
+            raise ValueError('Invalid address format ' + addr)
 
         split_address_cache[address] = (sheet, col, row)
         return sheet, col, row
@@ -165,7 +165,7 @@ def resolve_range(rng, should_flatten = False, sheet=''):
             sh, end_col, end_row = split_address(end)
 
         start_col_idx = col2num(start_col)
-        end_col_idx = col2num(end_col);
+        end_col_idx = col2num(end_col)
 
         start_row = int(start_row)
         end_row = int(end_row)

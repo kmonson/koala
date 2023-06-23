@@ -351,7 +351,6 @@ def make_subgraph(G, seed, direction = "ascending"):
 
     return subgraph
 
-
 def cell2code(cell, named_ranges):
     """Generate python code for the given cell"""
     if cell.formula:

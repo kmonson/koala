@@ -239,8 +239,7 @@ class RangeNode(OperandNode):
         # for OFFSET, it will also depends on the position in the formula (1st position required)
         if (parent is not None and
             (parent.tvalue == ':' or
-            (parent.tvalue == 'OFFSET' and parent.children(ast)[0] == self) or
-            (parent.tvalue == 'CHOOSE' and parent.children(ast)[0] != self and self.tsubtype == "named_range")) or
+            (parent.tvalue == 'OFFSET' and parent.children(ast)[0] == self)) or
             pointer):
 
             to_eval = False
@@ -314,7 +313,7 @@ class FunctionNode(ASTNode):
             childs = args[0].children(ast)
 
             for child in childs:
-                if ':' in child.tvalue and child.tvalue != ':':
+                if isinstance(child.tvalue, str) and ':' in child.tvalue and child.tvalue != ':':
                     is_range = True
                     range = child.tvalue
                     break
@@ -322,9 +321,9 @@ class FunctionNode(ASTNode):
             if is_range: # hack to filter Ranges when necessary,for instance situations like {=IF(A1:A3 > 0; A1:A3; 0)}
                 return 'RangeCore.filter(self.eval_ref("%s"), %s)' % (range, args[0].emit(ast,context=context))
             if len(args) == 2:
-                return "%s if %s else 0" %(args[1].emit(ast,context=context),args[0].emit(ast,context=context))
+                return "((%s) if (%s) else 0)" %(args[1].emit(ast,context=context),args[0].emit(ast,context=context))
             elif len(args) == 3:
-                return "(%s if %s else %s)" % (args[1].emit(ast,context=context),args[0].emit(ast,context=context),args[2].emit(ast,context=context))
+                return "((%s) if (%s) else (%s))" % (args[1].emit(ast,context=context),args[0].emit(ast,context=context),args[2].emit(ast,context=context))
             else:
                 raise Exception("if with %s arguments not supported" % len(args))
 

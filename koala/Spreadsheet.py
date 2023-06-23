@@ -51,9 +51,9 @@ class Spreadsheet(object):
             else:                       # assume file path
                 archive = read_archive(os.path.abspath(file))
             # Parse cells
-            self.cells, self.sheets = read_cells(archive, ignore_sheets, ignore_hidden, include_only_sheets)
-            # Parse named_range { name (ExampleName) -> address (Sheet!A1:A10)}
             self.named_ranges = read_named_ranges(archive)
+            self.cells, self.sheets = read_cells(archive, ignore_sheets, ignore_hidden, include_only_sheets, self.named_ranges)
+            # Parse named_range { name (ExampleName) -> address (Sheet!A1:A10)}
             self.range = RangeFactory(self.cells)
             self.pointers = set()
             self.debug = debug
@@ -193,7 +193,7 @@ class Spreadsheet(object):
         addr_to_range = {}
 
         for c in list(self.cellmap.values()):
-            if c.is_range and len(list(c.range.keys())) != 0: # could be better, but can't check on Exception types here...
+            if c.is_range and len(c.range) != 0:  # could be better, but can't check on Exception types here...
                 addr = c.address() if c.is_named_range else c.range.name
                 for cell in c.range.addresses:
                     if cell not in addr_to_range:
@@ -676,7 +676,7 @@ class Spreadsheet(object):
         """
         self.reset_buffer = set()
 
-        if address in self.named_ranges.keys(): # if cell is named range get real address
+        if address in self.named_ranges: # if cell is named range get real address
             address = self.named_ranges[address]
 
         try:
@@ -881,7 +881,15 @@ class Spreadsheet(object):
             if '!' in addr2:
                 addr2 = addr2.split('!')[1]
 
-            cell_range = self.range('%s:%s' % (addr1, addr2))
+            new_range = '%s:%s' % (addr1, addr2)
+            range_cells, *_ = resolve_range(new_range, should_flatten=True)
+
+            # Ensure all cells exist in ref. Only happens on first ref.
+            for cell_address in range_cells:
+                if cell_address not in self.cellmap:
+                    self.cell_add(cell_address)
+
+            cell_range = self.range(new_range)
             self.update_range(cell_range)
             return cell_range
 
@@ -925,7 +933,8 @@ class Spreadsheet(object):
         else:  # addr1 = Sheet1!A1, addr2 = Sheet1!A2
             if '!' in addr2:
                 addr2 = addr2.split('!')[1]
-            return self.range('%s:%s' % (addr1, addr2))
+            new_range = '%s:%s' % (addr1, addr2)
+            return self.range(new_range)
 
     def update_range(self, range):
         # This function loops through its Cell references to evaluate the ones that need so

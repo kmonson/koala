@@ -47,7 +47,7 @@ def get_cell_address(sheet, tuple):
         return get_cell_addr_cache[(sheet, tuple)]
 
 
-def check_value(a):
+def check_value(a, number_bias=False):
     if isinstance(a, ExcelError):
         return a
     elif isinstance(a, str) and a in ErrorCodes:
@@ -55,6 +55,8 @@ def check_value(a):
 
     try:  # This is to avoid None or Exception returned by Range operations
         if isinstance(a, str):
+            if number_bias and not a:
+                return 0
             return a
         elif float(a):
             return a
@@ -529,130 +531,115 @@ class RangeCore(dict):
             return function(first, second)
 
     @staticmethod
-    def add(a, b):
-        try:
-            a = check_value(a)
-            b = check_value(b)
-            if isinstance(a, str) or isinstance(b, str):
-                a = str(a)
-                b = str(b)
-            return a + b
-        except Exception as e:
-            return ExcelError('#N/A', e)
-
-    @staticmethod
-    def substract(a, b):
-        try:
-            return check_value(a) - check_value(b)
-        except Exception as e:
-            return ExcelError('#N/A', e)
-
-    @staticmethod
-    def minus(a, b=None):
-        # b is not used, but needed in the signature. Maybe could be better
-        try:
-            return -check_value(a)
-        except Exception as e:
-            return ExcelError('#N/A', e)
-
-    @staticmethod
-    def multiply(a, b):
-        try:
-            return check_value(a) * check_value(b)
-        except Exception as e:
-            return ExcelError('#N/A', e)
-
-    @staticmethod
-    def divide(a, b):
-        try:
-            return float(check_value(a)) / float(check_value(b))
-        except Exception as e:
-            return ExcelError('#DIV/0!', e)
-
-    @staticmethod
-    def power(a, b):
-        try:
-            return pow(float(check_value(a)), float(check_value(b)))
-        except Exception as e:
-            return ExcelError('#VALUE!', e)
-
-    @staticmethod
-    def is_equal(a, b):
-        try:
-            if not isinstance(a, str):
-                a = check_value(a)
-            if not isinstance(b, str):
-                b = check_value(b)
-
-            return is_almost_equal(a, b, precision=0.00001)
-        except Exception as e:
-            return ExcelError('#N/A', e)
-
-    @staticmethod
-    def is_not_equal(a, b):
-        try:
-            if not isinstance(a, str):
-                a = check_value(a)
-            if not isinstance(a, str):
-                b = check_value(b)
-
-            return a != b
-        except Exception as e:
-            return ExcelError('#N/A', e)
-
-    @staticmethod
-    def is_strictly_superior(a, b):
-        try:
-            return check_value(a) > check_value(b)
-        except Exception as e:
-            return ExcelError('#N/A', e)
-
-    @staticmethod
-    def is_strictly_inferior(a, b):
-        try:
-            return check_value(a) < check_value(b)
-        except Exception as e:
-            return ExcelError('#N/A', e)
-
-    @staticmethod
-    def is_superior_or_equal(a, b):
-        try:
-            a = check_value(a)
-            b = check_value(b)
-
-            return a > b or is_almost_equal(a, b)
-        except Exception as e:
-            return ExcelError('#N/A', e)
-
-    @staticmethod
-    def is_inferior_or_equal(a, b):
-        try:
-            a = check_value(a)
-            b = check_value(b)
-
-            return a < b or is_almost_equal(a, b)
-        except Exception as e:
-            return ExcelError('#N/A', e)
-
-    @staticmethod
-    def concatenate(a, b):
-        try:
-            a = check_value(a)
-            b = check_value(b)
+    def error_wrapper(func):
+        def wrapped(a,b):
             if isinstance(a, ExcelError):
                 return a
             if isinstance(b, ExcelError):
                 return b
-            #Truncate 0's off of floats if appropriate.
-            if isinstance(a, float) and a.is_integer():
-                a = int(a)
-            if isinstance(b, float) and b.is_integer():
-                b = int(b)
+            try:
+                return func(a, b)
+            except Exception as e:
+                return ExcelError('#N/A', e)
+        return wrapped
+
+    @staticmethod
+    @error_wrapper
+    def add(a, b):
+        a = check_value(a)
+        b = check_value(b)
+        if isinstance(a, str) or isinstance(b, str):
             a = str(a)
             b = str(b)
-            return a + b
-        except Exception as e:
-            return ExcelError('#N/A', e)
+        return a + b
+
+    @staticmethod
+    @error_wrapper
+    def substract(a, b):
+        return check_value(a, number_bias=True) - check_value(b, number_bias=True)
+
+    @staticmethod
+    @error_wrapper
+    def minus(a, b=None):
+        # b is not used, but needed in the signature. Maybe could be better
+        return -check_value(a, number_bias=True)
+
+    @staticmethod
+    @error_wrapper
+    def multiply(a, b):
+        return check_value(a, number_bias=True) * check_value(b, number_bias=True)
+
+    @staticmethod
+    @error_wrapper
+    def divide(a, b):
+        return float(check_value(a, number_bias=True)) / float(check_value(b, number_bias=True))
+
+    @staticmethod
+    @error_wrapper
+    def power(a, b):
+        return pow(float(check_value(a, number_bias=True)), float(check_value(b, number_bias=True)))
+
+    @staticmethod
+    @error_wrapper
+    def is_equal(a, b):
+        if not isinstance(a, str):
+            a = check_value(a)
+        if not isinstance(b, str):
+            b = check_value(b)
+
+        return is_almost_equal(a, b, precision=0.00001)
+
+    @staticmethod
+    @error_wrapper
+    def is_not_equal(a, b):
+        if not isinstance(a, str):
+            a = check_value(a)
+        if not isinstance(a, str):
+            b = check_value(b)
+
+        return a != b
+
+    @staticmethod
+    @error_wrapper
+    def is_strictly_superior(a, b):
+        return check_value(a) > check_value(b)
+
+    @staticmethod
+    @error_wrapper
+    def is_strictly_inferior(a, b):
+        return check_value(a) < check_value(b)
+
+    @staticmethod
+    @error_wrapper
+    def is_superior_or_equal(a, b):
+        a = check_value(a)
+        b = check_value(b)
+
+        return a > b or is_almost_equal(a, b)
+
+    @staticmethod
+    @error_wrapper
+    def is_inferior_or_equal(a, b):
+        a = check_value(a)
+        b = check_value(b)
+
+        return a < b or is_almost_equal(a, b)
+
+    @staticmethod
+    @error_wrapper
+    def concatenate(a, b):
+        a = check_value(a)
+        b = check_value(b)
+        #Truncate 0's off of floats if appropriate.
+        if isinstance(a, float) and a.is_integer():
+            a = int(a)
+        if isinstance(b, float) and b.is_integer():
+            b = int(b)
+        a = str(a)
+        b = str(b)
+        return a + b
+
+
 
 func_dict = {
     "multiply": RangeCore.multiply,

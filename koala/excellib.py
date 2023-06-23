@@ -12,8 +12,9 @@ import numpy_financial as npf
 import scipy.optimize
 import datetime
 import random
-from math import log, ceil
-from decimal import Decimal, ROUND_UP, ROUND_HALF_UP
+import heapq
+import math
+from decimal import Decimal, ROUND_UP, ROUND_HALF_UP, ROUND_DOWN, ROUND_FLOOR, ROUND_CEILING
 from calendar import monthrange
 from dateutil.relativedelta import relativedelta
 
@@ -41,6 +42,7 @@ FUNCTION_MAP = {
     "min": "xmin",
     "round": "xround",
     "sum": "xsum",
+    "len": "xlen",
 }
 
 # Define the function below, then add the definition below (both alphabetically)
@@ -51,6 +53,7 @@ IND_FUN = [
     "ARRAYROW",  # see astnodes.py, not defined here
     "ATAN2",  # see astnodes.py, not defined here
     "AVERAGE",
+    "CEILING",
     "CHOOSE",
     "COLUMNS",
     "CONCAT",
@@ -60,8 +63,11 @@ IND_FUN = [
     "COUNTIF",
     "COUNTIFS",
     "DATE",
+    "DAY",
+    "DAYS",
     "EDATE",
     "EOMONTH",
+    "FLOOR",
     "GAMMALN",  # see lgamma, a Python function, redefined in function map above
     "HLOOKUP",
     "IF",  # see astnodes.py, not defined here
@@ -69,9 +75,11 @@ IND_FUN = [
     "INDEX",  # see astnodes.py
     "IRR",
     "ISBLANK",
+    "ISERROR",
     "ISNA",
     "ISTEXT",
     "LEFT",
+    "LEN",  # see xlen, redefined in function map above
     "LINEST",
     "LOG",  # Python function, not defined here
     "LOOKUP",
@@ -93,9 +101,12 @@ IND_FUN = [
     "RANDBETWEEN",
     "RIGHT",
     "ROUND",  # see xround, redefined in function map above
+    "ROUNDDOWN",
     "ROUNDUP",
     "ROWS",
+    "SINGLE",
     "SLN",
+    "SMALL",
     "SQRT",
     "SUM",  # see xsum, redefined in function map above
     "SUMIF",
@@ -133,17 +144,45 @@ def average(*args): # Excel reference: https://support.office.com/en-us/article/
     except ZeroDivisionError as e:
         return ExcelError('#DIV/0!', e)
 
+def ceiling(number, significance): # Excel reference: https://support.microsoft.com/en-us/office/ceiling-function-0a5cd7c8-0720-4f0a-bd2c-c943e510899f
+    if not is_number(number):
+        return ExcelError('#VALUE!', '%s is not a number' % str(number))
+    if not is_number(significance):
+        return ExcelError('#VALUE!', '%s is not a number' % str(significance))
+
+    if significance < 0.0 and number > 0.0:
+        return ExcelError("#NUM!", "Number Error")
+
+    # This is what excel does...
+    if significance == 0.0:
+        return 0
+
+    v = Decimal(number)
+    dq = Decimal(significance)
+    return float((v/dq).quantize(Decimal("1"), rounding=ROUND_CEILING)*dq)
+
 
 def choose(index_num, *values): # Excel reference: https://support.office.com/en-us/article/CHOOSE-function-fc5c184f-cb62-4ec7-a46e-38653b98f5bc
+    def resolve_index(i):
+        i = int(i)
+        if i <= 0 or i > 254:
+            return ExcelError('#VALUE!', '%s must be between 1 and 254' % str(index_num))
+        elif i > len(values):
+            return ExcelError('#VALUE!',
+                              '%s must not be larger than the number of values: %s' % (str(index_num), len(values)))
+        else:
+            return values[i - 1]
 
-    index = int(index_num)
-
-    if index <= 0 or index > 254:
-        return ExcelError('#VALUE!', '%s must be between 1 and 254' % str(index_num))
-    elif index > len(values):
-        return ExcelError('#VALUE!', '%s must not be larger than the number of values: %s' % (str(index_num), len(values)))
+    if isinstance(index_num, list):
+        result = []
+        for choice in flatten_list(index_num):
+            value = resolve_index(choice)
+            if isinstance(value, ExcelError):
+                return value
+            result.append(value)
     else:
-        return values[index - 1]
+        result = resolve_index(index_num)
+    return result
 
 
 def columns(array):
@@ -311,6 +350,31 @@ def date(year, month, day):  # Excel reference: https://support.office.com/en-us
         return result
 
 
+def day(serial_number):  # https://support.microsoft.com/en-us/office/day-function-8a7d1cbb-6c7d-4ba1-8aea-25c134d03101
+    if not is_number(serial_number):
+        return ExcelError('#VALUE!', 'start_date %s must be a number' % str(serial_number))
+    if serial_number < 0:
+        return ExcelError('#VALUE!', 'start_date %s must be positive' % str(serial_number))
+
+    y1, m1, d1 = date_from_int(serial_number)
+
+    return d1
+
+
+def days(end_serial_number, start_serial_number):  # https://support.microsoft.com/en-us/office/days-function-57740535-d549-4395-8728-0f07bff0b9df
+    if not is_number(start_serial_number):
+        return ExcelError('#VALUE!', 'start_date %s must be a number (DATEVALUE unsupported)' % str(start_serial_number))
+    if start_serial_number < 0:
+        return ExcelError('#NUM!', 'start_date %s must be positive' % str(start_serial_number))
+
+    if not is_number(end_serial_number):
+        return ExcelError('#VALUE!', 'end_date %s must be a number (DATEVALUE unsupported)' % str(end_serial_number))
+    if end_serial_number < 0:
+        return ExcelError('#NUM!', 'end_date %s must be positive' % str(end_serial_number))
+
+    return end_serial_number - start_serial_number
+
+
 def edate(start_date, months):  # Excel reference: https://support.office.com/en-us/article/EDATE-function-3C920EB2-6E66-44E7-A1F5-753AE47EE4F5
     if not is_number(start_date):
         return ExcelError('#VALUE!', 'start_date %s must be a number' % str(start_date))
@@ -346,6 +410,27 @@ def eomonth(start_date, months):  # Excel reference: https://support.office.com/
     res = int(int_from_date(datetime.date(y2, m2, d2)))
 
     return res
+
+
+def floor(number, significance):  # Excel reference: https://support.microsoft.com/en-us/office/floor-function-14bb497c-24f2-4e04-b327-b0b4de5a8886
+    if not is_number(number):
+        return ExcelError('#VALUE!', '%s is not a number' % str(number))
+    if not is_number(significance):
+        return ExcelError('#VALUE!', '%s is not a number' % str(significance))
+
+    if significance < 0.0 and number > 0.0:
+        return ExcelError("#NUM!", "Number Error")
+
+    # This is what excel does...
+    if significance == 0.0:
+        if number == 0.0:
+            return 0
+        else:
+            return ExcelError("!DIV/0!", "Divide by Zero Error")
+
+    v = Decimal(number)
+    dq = Decimal(significance)
+    return float((v / dq).quantize(Decimal("1"), rounding=ROUND_FLOOR) * dq)
 
 
 def hlookup(lookup_value, table_array, row_index_num, range_lookup=True): # https://support.office.com/en-us/article/HLOOKUP-function-A3034EEC-B719-4BA3-BB65-E1AD662ED95F
@@ -495,6 +580,10 @@ def isblank(value):
     return value is None
 
 
+def iserror(value):
+    return isinstance(value, ExcelError) or value in ErrorCodes
+
+
 def isna(value):
     # This function might need more solid testing
     try:
@@ -562,10 +651,10 @@ def lookup(value, lookup_range, result_range = None):  # Excel reference: https:
     output_range = result_range.values if result_range is not None else lookup_range.values
 
     if lastnum < 0:
-        return ExcelError('#VALUE!', 'No numeric data found in the lookup range')
+        return ExcelError('#N/A', 'No numeric data found in the lookup range')
     else:
         if i == 0:
-            return ExcelError('#VALUE!', 'All values in the lookup range are bigger than %s' % value)
+            return ExcelError('#N/A', 'All values in the lookup range are bigger than %s' % value)
         else:
             if i >= len(lookup_range)-1:
                 # return the biggest number smaller than value
@@ -736,8 +825,8 @@ def offset(reference, rows, cols, height=None, width=None): # Excel reference: h
         if isinstance(i, ExcelError) or i in ErrorCodes:
             return i
 
-    rows = int(rows)
-    cols = int(cols)
+    rows = int(rows) if rows is not None else 0
+    cols = int(cols) if cols is not None else 0
 
     # get first cell address of reference
     if is_range(reference):
@@ -843,13 +932,19 @@ def roundup(number, num_digits = 0): # Excel reference: https://support.office.c
 
     number = float(number) # if you don't Spreadsheet.dump/load, you might end up with Long numbers, which Decimal doesn't accept
 
-    if num_digits >= 0: # round to the right side of the point
-        return float(Decimal(repr(number)).quantize(Decimal(repr(pow(10, -num_digits))), rounding=ROUND_UP))
-        # see https://docs.python.org/2/library/functions.html#round
-        # and https://gist.github.com/ejamesc/cedc886c5f36e2d075c5
+    result = Decimal(repr(number)).quantize(Decimal(repr(pow(10, -num_digits))), rounding=ROUND_UP)
+    return float(result) if num_digits > 0 else int(result)
 
-    else:
-        return ceil(number / pow(10, -num_digits)) * pow(10, -num_digits)
+def rounddown(number, num_digits = 0):  # Excel reference: https://support.microsoft.com/en-us/office/rounddown-function-2ec94c73-241f-4b01-8c6f-17e6d7968f53
+
+    if not is_number(number):
+        return ExcelError('#VALUE!', '%s is not a number' % str(number))
+    if not is_number(num_digits):
+        return ExcelError('#VALUE!', '%s is not a number' % str(num_digits))
+
+    number = float(number) # if you don't Spreadsheet.dump/load, you might end up with Long numbers, which Decimal doesn't accept
+    result = Decimal(repr(number)).quantize(Decimal(repr(pow(10, -num_digits))), rounding=ROUND_DOWN)
+    return float(result) if num_digits > 0 else int(result)
 
 
 def rows(array):
@@ -870,6 +965,13 @@ def rows(array):
 
     return rows
 
+def single(values):
+    if isinstance(values, Range):
+        return ExcelError("#ERR!", "Single does not support Ranges.")
+    if isinstance(values, list):
+        return values[0]
+    return values
+
 
 def sln(cost, salvage, life): # Excel reference: https://support.office.com/en-us/article/SLN-function-cdb666e5-c1c6-40a7-806a-e695edc2f1c8
 
@@ -878,6 +980,22 @@ def sln(cost, salvage, life): # Excel reference: https://support.office.com/en-u
             return arg
 
     return (cost - salvage) / life
+
+
+def small(values, k):  # https://support.microsoft.com/en-us/office/small-function-17da8222-7c82-42b2-961b-14c45384df07
+    if isinstance(values, Range):
+        values = values.values
+
+    values = list(flatten_list(list(values)))
+
+    if not values:
+        return ExcelError('#NUM!', 'array must not be empty')
+
+    if not (len(values) >= k > 0):
+        return ExcelError('#NUM!', '%s must be between 0 and length of array' % str(k))
+
+    return heapq.nsmallest(k, values)[-1]
+
 
 
 # https://support.office.com/en-ie/article/sqrt-function-654975c2-05c4-4831-9a24-2c65e4040fdf
@@ -913,21 +1031,23 @@ def sumif(range, criteria, sum_range = None): # Excel reference: https://support
             return sum_range.values[x] if x < sum_range.length else 0
 
         values = list(map(f, indexes))
+        values = extract_numeric_values(values)
 
         for v in values:
             if isinstance(v, ExcelError):
                 return v
 
-        return sum(values)
+        return sum(v for v in values if v is not None)
 
     else:
         values = [range.values[x] for x in indexes]
+        values = extract_numeric_values(values)
 
         for v in values:
             if isinstance(v, ExcelError):
                 return v
 
-        return sum(values)
+        return sum(v for v in values if v is not None)
 
 
 def sumifs(*args):
@@ -960,6 +1080,13 @@ def sumifs(*args):
         index = np.intersect1d(index, index_tmp)
 
     sum_select = [sum_range.values[i] for i in index]
+
+    sum_select = extract_numeric_values(sum_select)
+
+    for v in sum_select:
+        if isinstance(v, ExcelError):
+            return v
+
     res = sum(sum_select)
 
     return res
@@ -1175,12 +1302,18 @@ def xirr(values, dates, guess=0):
             return ExcelError('#NUM', 'IRR did not converge.')
 
 
+def xlen(value):  # https://support.microsoft.com/en-us/office/len-lenb-functions-29236f94-cedc-429d-affd-b5e33d2c67cb
+    if value is None:
+        return 0
+    return len(str(value))
+
+
 def xlog(a):
     if isinstance(a,(list,tuple,np.ndarray)):
-        return [log(x) for x in flatten(a)]
+        return [math.log(x) for x in flatten(a)]
     else:
         #print a
-        return log(a)
+        return math.log(a)
 
 
 def xmax(*args): # Excel reference: https://support.office.com/en-us/article/MAX-function-e0012414-9ac8-4b34-9a47-73e662c08098
@@ -1262,7 +1395,7 @@ def xround(number, num_digits = 0): # Excel reference: https://support.office.co
 
     number = float(number) # if you don't Spreadsheet.dump/load, you might end up with Long numbers, which Decimal doesn't accept
 
-    if num_digits >= 0: # round to the right side of the point
+    if num_digits > 0: # round to the right side of the point
         return float(Decimal(repr(number)).quantize(Decimal(repr(pow(10, -num_digits))), rounding=ROUND_HALF_UP))
         # see https://docs.python.org/2/library/functions.html#round
         # and https://gist.github.com/ejamesc/cedc886c5f36e2d075c5
@@ -1386,9 +1519,17 @@ def yearfrac(start_date, end_date, basis=0):
     y1, m1, d1 = date_from_int(start_date)
     y2, m2, d2 = date_from_int(end_date)
 
-    if basis == 0:  # US 30/360
+    if basis == 0:  # US 30/360 https://cbonds.com/glossary/30-360-us/
         d2 = 30 if d2 == 31 and (d1 == 31 or d1 == 30) else min(d2, 31)
         d1 = 30 if d1 == 31 else d1
+
+        if m1 == 2:
+            if (not is_leap_year(y1) and d1 == 28) or d1 == 29:
+                d1 = 30
+                # February month end rules only apply to d2 if they were applied to d1.
+                if m2 == 2:
+                    if (not is_leap_year(y2) and d2 == 28) or d2 == 29:
+                        d2 = 30
 
         count = 360 * (y2 - y1) + 30 * (m2 - m1) + (d2 - d1)
         result = count / 360

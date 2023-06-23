@@ -441,7 +441,8 @@ class ExcelParser(ExcelParserTokens):
             # start subexpression or function
             if (currentChar() == "("):
                 if (len(token) > 0):
-                    tokenStack.push(tokens.add(token, self.TOK_TYPE_FUNCTION, self.TOK_SUBTYPE_START))
+                    # Some versions of EXCEL will erroneously prepend "_xlfn." to newer functions.
+                    tokenStack.push(tokens.add(token.lstrip("_xlfn."), self.TOK_TYPE_FUNCTION, self.TOK_SUBTYPE_START))
                     token = ""
                 else:
                     tokenStack.push(tokens.add("", self.TOK_TYPE_SUBEXPR, self.TOK_SUBTYPE_START))

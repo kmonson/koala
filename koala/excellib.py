@@ -932,8 +932,13 @@ def roundup(number, num_digits = 0): # Excel reference: https://support.office.c
 
     number = float(number) # if you don't Spreadsheet.dump/load, you might end up with Long numbers, which Decimal doesn't accept
 
-    result = Decimal(repr(number)).quantize(Decimal(repr(pow(10, -num_digits))), rounding=ROUND_UP)
-    return float(result) if num_digits > 0 else int(result)
+    if num_digits > 0: # round to the right side of the point
+        return float(Decimal(repr(number)).quantize(Decimal(repr(pow(10, -num_digits))), rounding=ROUND_UP))
+        # see https://docs.python.org/2/library/functions.html#round
+        # and https://gist.github.com/ejamesc/cedc886c5f36e2d075c5
+    else:
+        return int(math.ceil(number / pow(10, -num_digits)) * pow(10, -num_digits))
+
 
 def rounddown(number, num_digits = 0):  # Excel reference: https://support.microsoft.com/en-us/office/rounddown-function-2ec94c73-241f-4b01-8c6f-17e6d7968f53
 
@@ -943,8 +948,13 @@ def rounddown(number, num_digits = 0):  # Excel reference: https://support.micro
         return ExcelError('#VALUE!', '%s is not a number' % str(num_digits))
 
     number = float(number) # if you don't Spreadsheet.dump/load, you might end up with Long numbers, which Decimal doesn't accept
-    result = Decimal(repr(number)).quantize(Decimal(repr(pow(10, -num_digits))), rounding=ROUND_DOWN)
-    return float(result) if num_digits > 0 else int(result)
+
+    if num_digits > 0: # round to the right side of the point
+        return float(Decimal(repr(number)).quantize(Decimal(repr(pow(10, -num_digits))), rounding=ROUND_DOWN))
+        # see https://docs.python.org/2/library/functions.html#round
+        # and https://gist.github.com/ejamesc/cedc886c5f36e2d075c5
+    else:
+        return int(math.floor(number / pow(10, -num_digits)) * pow(10, -num_digits))
 
 
 def rows(array):

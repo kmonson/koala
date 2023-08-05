@@ -1,7 +1,7 @@
 # Koala
 
-**Note**
-As of August 2023 I will be moving my projects off of this library and over to [Aspose.Cells](https://docs.aspose.com/cells/net/) for performance and scalability reasons. 
+> **Note**
+> As of August 2023 I will be moving my projects off of this library and over to [Aspose.Cells](https://docs.aspose.com/cells/net/) for performance and scalability reasons. 
 0.0.36+7 will probably be the last release of this library. -Kyle
 
 Koala converts any Excel workbook into a python object that enables on the fly calculation without the need of Excel.

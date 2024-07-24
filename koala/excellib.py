@@ -14,7 +14,7 @@ import datetime
 import random
 import heapq
 import math
-from decimal import Decimal, ROUND_UP, ROUND_HALF_UP, ROUND_DOWN, ROUND_FLOOR, ROUND_CEILING
+from decimal import Decimal, ROUND_UP, ROUND_HALF_UP, ROUND_DOWN, ROUND_FLOOR, ROUND_CEILING, localcontext
 from calendar import monthrange
 from dateutil.relativedelta import relativedelta
 
@@ -764,6 +764,8 @@ def mod(nb, q):  # Excel Reference: https://support.office.com/en-us/article/MOD
 
 
 def month(serial_number): # Excel reference: https://support.office.com/en-us/article/month-function-579a2881-199b-48b2-ab90-ddba0eba86e8
+    if serial_number is None:
+        serial_number = 0
     if not is_number(serial_number):
         return ExcelError('#VALUE!', 'start_date %s must be a number' % str(serial_number))
     if serial_number < 0:
@@ -1411,7 +1413,10 @@ def xround(number, num_digits = 0): # Excel reference: https://support.office.co
         # and https://gist.github.com/ejamesc/cedc886c5f36e2d075c5
 
     else:
-        return int(round(number, num_digits))
+        # TODO: Can we just replace everything with this?
+        with localcontext() as ctx:
+            ctx.rounding = ROUND_HALF_UP
+            return int(round(Decimal(number), num_digits))
 
 
 def xsum(*args): # Excel reference: https://support.office.com/en-us/article/SUM-function-043e1c7d-7726-4e80-8f32-07b23e057f89
@@ -1431,6 +1436,8 @@ def xsum(*args): # Excel reference: https://support.office.com/en-us/article/SUM
 
 
 def year(serial_number): # Excel reference: https://support.office.com/en-us/article/year-function-c64f017a-1354-490d-981f-578e8ec8d3b9
+    if serial_number is None:
+        serial_number = 0
     if not is_number(serial_number):
         return ExcelError('#VALUE!', 'start_date %s must be a number' % str(serial_number))
     if serial_number < 0:
